@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 import psycopg2
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://localhost/message_app"
+app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://localhost/messages_app"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = True
 app.config['SECRET_KEY'] = "abc123"
@@ -22,6 +22,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.Text)
     last_name = db.Column(db.Text)
+    picture_url = db.Column(db.Text)
     messages = db.relationship("Message", backref="user")
 
 
@@ -33,23 +34,46 @@ class Message(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
 
+# class Tag(db.Model):
+#     __tablename__ = "tags"
+
+#     id = db.Column(db.Integer, primary_key=True)
+#     name = db.Column(db.Text, unique=True)
+#     messages = db.relationship(
+#         'Message',
+#         secondary=message_tag_table,
+#         cascade="all delete",
+#         backref=db.backref('tags'))
+
 db.create_all()
 
 
 @app.route("/")
 def root():
-    return redirect(url_for('users_index'))
+    return redirect(url_for('show_users_index'))
 
 
 @app.route("/users")
-def users_index():
+def show_users_index():
     users = User.query.all()
-    return render_template("index.html", users=users)
+    return render_template("users/index.html", users=users)
 
 
-@app.route("/users/form")
+@app.route("/users/new")
 def show_add_user_form():
-    return render_template("form.html")
+    return render_template("users/new.html")
+
+
+@app.route("/users", methods=["POST"])
+def create_user():
+    new_user = User(
+        first_name=request.values.get('first_name'),
+        last_name=request.values.get('last_name'),
+        picture_url=request.values.get('profile_picture'))
+
+    db.session.add(new_user)
+    db.session.commit()
+    return redirect(url_for('show_users_index'))
 
 
 # @app.route("/users")
