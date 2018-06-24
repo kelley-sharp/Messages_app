@@ -1,0 +1,8 @@
+{% extends 'users/base.html' %}
+{% block content %}
+
+  <h2>{{ user.first_name }} {{ user.last_name }}</h2>
+  <img src="{{ user.picture_url }}" alt="No Profile Picture">
+  <h2><a href="{{ url_for( 'show_messages_index' )}}">Messages</a></h2>
+
+{% endblock %}

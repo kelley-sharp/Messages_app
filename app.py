@@ -76,5 +76,13 @@ def create_user():
     return redirect(url_for('show_users_index'))
 
 
-# @app.route("/users")
-# def add_new_user():
+@app.route("/users/<int:user_id>")
+def show_user(user_id):
+    found_user = User.query.get(user_id)
+    return render_template("users/show_user.html", user=found_user)
+
+
+@app.route("/users/<int:user_id>/messages")
+def show_messages_index(user_id):
+    found_user = User.query.get(user_id)
+    return render_template('messages/index.html', user=found_user)
