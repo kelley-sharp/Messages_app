@@ -1,9 +1,16 @@
 {% extends 'messages/base.html' %}
 {% block content %}
-<h2><a href="{{ url_for('new_message_form', user_id=user.id) }}">Write a New Message for {{ user.first_name }} {{ user.last_name }}</a></h2>
+<h1>{{ user.first_name }}'s Messages</h1>
+<h3><a href="{{ url_for('new_message_form', user_id=user.id) }}">Write a New Message for {{ user.first_name }} {{ user.last_name }}</a></h3>
+<h4><a href="{{ url_for( 'show_user', user_id=user.id) }}">Go Back to User's Profile</a></h4>
 {% for message in user.messages %}
-<p> {{ message.content }} </p>   
+
+<p> {{ message.content }} </p> 
 <small> - {{ message.author }} </small>
+<form action="{{ url_for('delete_message', user_id=user.id, message_id=message.id ) }}?_method=DELETE" method="POST">
+  <button type="submit">DELETE MESSAGE</button>  
+ </form>
 <hr/>
+
 {% endfor %}
 {% endblock%}

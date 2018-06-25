@@ -37,6 +37,27 @@ class Message(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
 
+message_tag_table = db.Table(
+    'message_tags',
+    db.Column('message_id', db.Integer, db.ForeignKey('messages.id')),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tags.id')))
+
+
+class Tag(db.Model):
+    __tablename__ = "tags"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.Text, unique=True)
+    messages = db.relationship(
+        'Message',
+        secondary=message_tag_table,
+        cascade="all delete",
+        backref=db.backref('tags'))
+
+
+db.create_all()
+
+
 class addMessageForm(FlaskForm):
     def my_length_check(form, field):
         if len(field.data) > 60:
@@ -45,20 +66,6 @@ class addMessageForm(FlaskForm):
     name = StringField("Your Name", validators=[InputRequired()])
     content = StringField(
         "Your Message", validators=[InputRequired(), my_length_check])
-
-
-# class Tag(db.Model):
-#     __tablename__ = "tags"
-
-#     id = db.Column(db.Integer, primary_key=True)
-#     name = db.Column(db.Text, unique=True)
-#     messages = db.relationship(
-#         'Message',
-#         secondary=message_tag_table,
-#         cascade="all delete",
-#         backref=db.backref('tags'))
-
-db.create_all()
 
 
 @app.route("/")
@@ -96,6 +103,23 @@ def show_user(user_id):
         "users/show_user.html", user=found_user, user_id=user_id)
 
 
+@app.route("/users/<int:user_id>/edit")
+def edit_user(user_id):
+    found_user = User.query.get(user_id)
+    return render_template("users/edit.html", user=found_user, user_id=user_id)
+
+
+@app.route("/users/<int:user_id>", methods=['PATCH'])
+def update_user(user_id):
+    found_user = User.query.get(user_id)
+    found_user.first_name = request.values.get('first_name'),
+    found_user.last_name = request.values.get('last_name'),
+    found_user.picture_url = request.values.get('profile_picture')
+    db.session.commit()
+    return render_template(
+        "users/show_user.html", user_id=user_id, user=found_user)
+
+
 @app.route("/users/<int:user_id>/messages")
 def show_messages_index(user_id):
     found_user = User.query.get(user_id)
@@ -131,3 +155,13 @@ def new_message_form(user_id):
     else:
         return render_template(
             "messages/new.html", form=form, user=found_user, user_id=user_id)
+
+
+@app.route(
+    "/users/<int:user_id>/messages/<int:message_id>", methods=['DELETE'])
+def delete_message(user_id, message_id):
+    found_message = Message.query.get(message_id)
+    user = found_message.user
+    db.session.delete(found_message)
+    db.session.commit()
+    return redirect(url_for('show_messages_index', user_id=user.id))
