@@ -1,0 +1,22 @@
+{% extends 'messages/base.html' %}
+{% block content %}
+  <form action="{{url_for('show_messages_index', user_id=user.id)}}" method="POST">
+  {{ form.hidden_tag() }}
+
+  {% for field in form if field.widget.input_type != 'hidden' %}
+
+  <p>
+    {{ field.label }}
+    {{ field }}
+
+    {% for error in field.errors %}
+      {{ 'must be between 2 and 60 characters' }}
+    {% endfor %}
+  </p>
+
+  {% endfor %}
+
+  <button type="submit">Submit Message for {{ user.first_name }} {{ user.last_name }}</button>
+
+  </form>
+{% endblock %}

@@ -2,7 +2,9 @@ from flask import Flask, request, url_for, render_template, redirect
 from flask_modus import Modus
 from flask_debugtoolbar import DebugToolbarExtension
 from flask_sqlalchemy import SQLAlchemy
-import psycopg2
+from flask_wtf import FlaskForm
+from wtforms import StringField
+from wtforms.validators import InputRequired, ValidationError
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://localhost/messages_app"
@@ -30,8 +32,19 @@ class Message(db.Model):
     __tablename__ = "messages"
 
     id = db.Column(db.Integer, primary_key=True)
+    author = db.Column(db.Text)
     content = db.Column(db.Text)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+
+class addMessageForm(FlaskForm):
+    def my_length_check(form, field):
+        if len(field.data) > 60:
+            raise ValidationError('Field must be under 60 characters long')
+
+    name = StringField("Your Name", validators=[InputRequired()])
+    content = StringField(
+        "Your Message", validators=[InputRequired(), my_length_check])
 
 
 # class Tag(db.Model):
@@ -79,10 +92,42 @@ def create_user():
 @app.route("/users/<int:user_id>")
 def show_user(user_id):
     found_user = User.query.get(user_id)
-    return render_template("users/show_user.html", user=found_user)
+    return render_template(
+        "users/show_user.html", user=found_user, user_id=user_id)
 
 
 @app.route("/users/<int:user_id>/messages")
 def show_messages_index(user_id):
     found_user = User.query.get(user_id)
-    return render_template('messages/index.html', user=found_user)
+    return render_template("messages/index.html", user=found_user)
+
+
+# @app.route("/users/messages/new")
+# def show_add_message_form():
+#     form = addMessageForm()
+#     return render_template("messages/new.html", form=form)
+
+
+@app.route("/users/<int:user_id>/messages", methods=["POST"])
+def add_message(user_id):
+    new_message = Message(
+        author=request.values.get('name'),
+        content=request.values.get('content'),
+        user_id=user_id)
+
+    db.session.add(new_message)
+    db.session.commit()
+    return redirect(url_for('show_messages_index', user_id=user_id))
+
+
+@app.route("/users/<int:user_id>/messages/new", methods=['GET'])
+def new_message_form(user_id):
+    form = addMessageForm()
+    found_user = User.query.get(user_id)
+    if form.validate_on_submit():
+        content = form.data['content']
+        name = form.data['name']
+        return f"{content} -{name}"
+    else:
+        return render_template(
+            "messages/new.html", form=form, user=found_user, user_id=user_id)
