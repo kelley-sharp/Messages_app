@@ -51,7 +51,7 @@ class Tag(db.Model):
     messages = db.relationship(
         'Message',
         secondary=message_tag_table,
-        cascade="all delete",
+        # cascade="all delete",
         backref=db.backref('tags'))
 
 
