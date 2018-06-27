@@ -1,10 +1,11 @@
-from flask import Flask, request, url_for, render_template, redirect
+from flask import Flask, request, url_for, render_template, redirect, session
 from flask_modus import Modus
 from flask_debugtoolbar import DebugToolbarExtension
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms.validators import InputRequired, ValidationError
+from flask_bcrypt import Bcrypt
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://localhost/messages_app"
@@ -14,6 +15,7 @@ app.config['SECRET_KEY'] = "abc123"
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 
 db = SQLAlchemy(app)
+bcrypt = Bcrypt()
 modus = Modus(app)
 toolbar = DebugToolbarExtension(app)
 
@@ -25,7 +27,30 @@ class User(db.Model):
     first_name = db.Column(db.Text)
     last_name = db.Column(db.Text)
     picture_url = db.Column(db.Text)
+    username = db.Column(db.Text, unique=True)
+    password = db.Column(db.Text)
     messages = db.relationship("Message", backref="user")
+
+    @classmethod
+    def register(cls, username, password):
+        """Register a user, hashing their password."""
+        hashed = bcrypt.generate_password_hash(password)
+        hashed_utf8 = hashed.decode("utf8")
+        return cls(username=username, password=hashed_utf8)
+
+    @classmethod
+    def authenticate(cls, username, password):
+        """Validate that user exists & password is correct.
+
+        Return user if valid; else return False.
+        """
+
+        user = User.query.filter_by(username=username).first()
+        if user:
+            if bcrypt.check_password_hash(user.password, password):
+                return user
+
+        return False
 
 
 class Message(db.Model):
@@ -76,7 +101,9 @@ def root():
 @app.route("/users")
 def show_users_index():
     users = User.query.all()
-    return render_template("users/index.html", users=users)
+    logged_in = bool(session.get('user_id'))
+    return render_template(
+        "users/index.html", users=users, logged_in=logged_in)
 
 
 @app.route("/users/new")
@@ -86,13 +113,46 @@ def show_add_user_form():
 
 @app.route("/users", methods=["POST"])
 def create_user():
-    new_user = User(
-        first_name=request.values.get('first_name'),
-        last_name=request.values.get('last_name'),
-        picture_url=request.values.get('profile_picture'))
+    if request.method == "POST":
+        new_user = User.register(
+            username=request.values.get('username'),
+            password=request.form.get("password"))
+        new_user.first_name = request.values.get('first_name'),
+        new_user.last_name = request.values.get('last_name'),
+        new_user.picture_url = request.values.get('profile_picture')
+        db.session.add(new_user)
+        db.session.commit()
+        return redirect(url_for('login'))
 
-    db.session.add(new_user)
-    db.session.commit()
+    return render_template('users/new.html')
+
+
+@app.route('/register', methods=['GET'])
+def register():
+    return render_template("users/new.html")
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Produce login form or handle login."""
+
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        user = User.authenticate(username, password)  # <User> or False
+        if user:
+            session["user_id"] = user.id
+            return redirect(url_for("show_users_index"))
+        else:
+            return "INVALID CREDENTIALS"
+
+    return render_template("users/login.html")
+
+
+@app.route('/logout', methods=['GET'])
+def logout():
+    del session["user_id"]
     return redirect(url_for('show_users_index'))
 
 
@@ -105,7 +165,10 @@ def show_user(user_id):
 
 @app.route("/users/<int:user_id>/edit")
 def edit_user(user_id):
+    current_user = User.query.get(session.get('user_id'))
     found_user = User.query.get(user_id)
+    if found_user != current_user:
+        return 'FORBIDDEN YOU CANNOT EDIT'
     return render_template("users/edit.html", user=found_user, user_id=user_id)
 
 

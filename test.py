@@ -19,6 +19,8 @@ class MyAppUnitTestCase(unittest.TestCase):
             follow_redirects=True)
         self.assertIn(b'dummy', result.data)
 
+        # joel = User.query.filter(User.first_name == "Joel", user.last_name == "Burton").first()
+
     def test_update_user(self):
         client = app.test_client()
         result = client.patch(
@@ -36,14 +38,16 @@ class MyAppUnitTestCase(unittest.TestCase):
     def test_delete_message(self):
         client = app.test_client()
         new_message = Message(
-            author='Kelley', content='delete bitch', user_id='2')
+            author='Kelley', content='delete me', user_id='2')
         db.session.add(new_message)
         db.session.commit()
 
         new_id = new_message.id
         result = client.delete('/users/' + str(new_message.user_id) +
                                'messages/' + str(new_message.id))
-        self.assertNotIn(b'<p> delete bitch </p>', result.data)
+        self.assertNotIn(b'<p> delete me </p>', result.data)
+
+    # class ...
 
 
 if __name__ == "__main__":
